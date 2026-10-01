@@ -1,6 +1,6 @@
 # Mesa — Asset Management Platform
 
-[![CI](https://github.com/andres-en/Mesa-Asset-Management-Platform/actions/workflows/ci.yml/badge.svg)](https://github.com/andres-en/Mesa-Asset-Management-Platform/actions/workflows/ci.yml)
+[![CI](https://github.com/andres-en/mesa-asset-management-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/andres-en/mesa-asset-management-platform/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3-000000?logo=flask)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
