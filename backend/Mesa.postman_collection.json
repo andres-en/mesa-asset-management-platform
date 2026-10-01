@@ -1,0 +1,355 @@
+{
+  "info": {
+    "name": "Mesa API",
+    "description": "Sistema de Préstamo y Control de Equipos - colección para probar todos los endpoints, incluyendo el flujo de firma remota por correo (Resend).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": { "type": "noauth" },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          "// El JWT viaja en una cookie HttpOnly que Postman reenvía solo (cookie jar).",
+          "// Las peticiones que mutan estado (POST/PUT/PATCH/DELETE) requieren además",
+          "// el header X-CSRF-TOKEN con el valor de la cookie csrf_access_token.",
+          "const method = pm.request.method;",
+          "if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {",
+          "    const csrf = pm.cookies.get('csrf_access_token');",
+          "    if (csrf) {",
+          "        pm.request.headers.upsert({ key: 'X-CSRF-TOKEN', value: csrf });",
+          "    }",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:5000", "type": "string" },
+    { "key": "equipo_id", "value": "1", "type": "string" },
+    { "key": "prestamo_id", "value": "1", "type": "string" },
+    { "key": "firma_token", "value": "", "type": "string" },
+    {
+      "key": "firma_png_base64",
+      "value": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Sistema",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/health", "host": ["{{base_url}}"], "path": ["health"] }
+          }
+        },
+        {
+          "name": "Swagger spec (apispec_1.json)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/apispec_1.json", "host": ["{{base_url}}"], "path": ["apispec_1.json"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Autenticación",
+      "item": [
+        {
+          "name": "GET URL login Google",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/auth/google", "host": ["{{base_url}}"], "path": ["auth", "google"] }
+          }
+        },
+        {
+          "name": "POST callback Google (intercambia code por JWT)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/auth/callback", "host": ["{{base_url}}"], "path": ["auth", "callback"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"AUTHORIZATION_CODE_DE_GOOGLE\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GET usuario actual (/auth/me)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/auth/me", "host": ["{{base_url}}"], "path": ["auth", "me"] }
+          }
+        },
+        {
+          "name": "POST logout",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/auth/logout", "host": ["{{base_url}}"], "path": ["auth", "logout"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Equipos",
+      "item": [
+        {
+          "name": "GET listar equipos",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/equipos?estado=Disponible",
+              "host": ["{{base_url}}"],
+              "path": ["equipos"],
+              "query": [{ "key": "estado", "value": "Disponible", "disabled": true }]
+            }
+          }
+        },
+        {
+          "name": "GET obtener equipo por id",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/equipos/{{equipo_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["equipos", "{{equipo_id}}"]
+            }
+          }
+        },
+        {
+          "name": "POST crear equipo",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/equipos", "host": ["{{base_url}}"], "path": ["equipos"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo_interno\": \"PC-001\",\n  \"marca\": \"Dell\",\n  \"modelo\": \"Latitude 5420\",\n  \"procesador\": \"i5-1135G7\",\n  \"ram\": \"16GB\",\n  \"observaciones\": \"Equipo nuevo\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const data = pm.response.json();",
+                  "    pm.collectionVariables.set('equipo_id', data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT actualizar equipo",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/equipos/{{equipo_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["equipos", "{{equipo_id}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"observaciones\": \"Actualizado desde Postman\",\n  \"estado\": \"Disponible\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Préstamos",
+      "item": [
+        {
+          "name": "GET listar préstamos",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/prestamos?estado=Activo",
+              "host": ["{{base_url}}"],
+              "path": ["prestamos"],
+              "query": [{ "key": "estado", "value": "Activo", "disabled": true }]
+            }
+          }
+        },
+        {
+          "name": "GET obtener préstamo por id",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/prestamos/{{prestamo_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["prestamos", "{{prestamo_id}}"]
+            }
+          }
+        },
+        {
+          "name": "POST crear préstamo (firma presencial)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/prestamos", "host": ["{{base_url}}"], "path": ["prestamos"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"equipo_id\": {{equipo_id}},\n  \"nombre_empleado\": \"Juan Pérez\",\n  \"cargo_empleado\": \"Analista de Sistemas\",\n  \"correo_empleado\": \"juan.perez@empresa.com\",\n  \"cargador_entregado\": true,\n  \"fecha_entrega\": \"2026-06-19\",\n  \"fecha_devolucion_estimada\": \"2026-07-19\",\n  \"observaciones_entrega\": \"Trabajo remoto por proyecto\",\n  \"firma_it\": \"{{firma_png_base64}}\",\n  \"firma_empleado\": \"{{firma_png_base64}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const data = pm.response.json();",
+                  "    pm.collectionVariables.set('prestamo_id', data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST crear préstamo (firma remota por correo)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/prestamos", "host": ["{{base_url}}"], "path": ["prestamos"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"equipo_id\": {{equipo_id}},\n  \"nombre_empleado\": \"Andres Estepa\",\n  \"cargo_empleado\": \"Analista\",\n  \"correo_empleado\": \"correo-verificado-en-resend@dominio.com\",\n  \"cargador_entregado\": true,\n  \"fecha_entrega\": \"2026-06-19\",\n  \"fecha_devolucion_estimada\": \"2026-07-19\",\n  \"observaciones_entrega\": \"Prueba firma remota\",\n  \"firma_it\": \"{{firma_png_base64}}\",\n  \"firma_remota\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const data = pm.response.json();",
+                  "    pm.collectionVariables.set('prestamo_id', data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST reenviar correo de firma",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/prestamos/{{prestamo_id}}/reenviar-firma",
+              "host": ["{{base_url}}"],
+              "path": ["prestamos", "{{prestamo_id}}", "reenviar-firma"]
+            }
+          }
+        },
+        {
+          "name": "PUT registrar devolución",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/prestamos/{{prestamo_id}}/devolver",
+              "host": ["{{base_url}}"],
+              "path": ["prestamos", "{{prestamo_id}}", "devolver"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado_equipo_devolucion\": \"Bueno\",\n  \"observaciones_devolucion\": \"Equipo en perfecto estado\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GET descargar acta en PDF",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/prestamos/{{prestamo_id}}/pdf",
+              "host": ["{{base_url}}"],
+              "path": ["prestamos", "{{prestamo_id}}", "pdf"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Firma remota (público, sin token JWT)",
+      "item": [
+        {
+          "name": "GET datos del préstamo por token de firma",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/firma/{{firma_token}}",
+              "host": ["{{base_url}}"],
+              "path": ["firma", "{{firma_token}}"]
+            }
+          }
+        },
+        {
+          "name": "POST enviar firma del empleado",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/firma/{{firma_token}}",
+              "host": ["{{base_url}}"],
+              "path": ["firma", "{{firma_token}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firma_empleado\": \"{{firma_png_base64}}\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Historial",
+      "item": [
+        {
+          "name": "GET historial completo",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/historial", "host": ["{{base_url}}"], "path": ["historial"] }
+          }
+        },
+        {
+          "name": "GET historial por equipo",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/historial/equipo/{{equipo_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["historial", "equipo", "{{equipo_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "GET indicadores",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/dashboard", "host": ["{{base_url}}"], "path": ["dashboard"] }
+          }
+        }
+      ]
+    }
+  ]
+}
