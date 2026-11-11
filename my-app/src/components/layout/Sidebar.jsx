@@ -12,10 +12,13 @@ import Laptop             from '@mui/icons-material/Laptop';
 import AddCircleOutlined  from '@mui/icons-material/AddCircleOutlined';
 import Assignment         from '@mui/icons-material/Assignment';
 import History            from '@mui/icons-material/History';
+import MapIcon            from '@mui/icons-material/Map';
 import LightModeIcon      from '@mui/icons-material/LightMode';
 import DarkModeIcon       from '@mui/icons-material/DarkMode';
 import LogoutIcon         from '@mui/icons-material/Logout';
 import GroupIcon          from '@mui/icons-material/Group';
+import BusinessIcon       from '@mui/icons-material/Business';
+import SensorsIcon        from '@mui/icons-material/Sensors';
 import { useAuth }        from '@/contexts/AuthContext';
 import { useThemeMode }   from '@/theme/ThemeRegistry';
 import MesaLogo from '@/components/brand/MesaLogo';
@@ -25,13 +28,16 @@ export const SIDEBAR_WIDTH = 240;
 const NAV_ITEMS = [
   { label: 'Dashboard',         href: '/dashboard',         icon: Dashboard },
   { label: 'Inventory',         href: '/inventario',        icon: Laptop },
+  { label: 'Network map',       href: '/mapa',              icon: MapIcon },
   { label: 'New loan',          href: '/prestamos/nuevo',   icon: AddCircleOutlined, adminOnly: true },
   { label: 'Active loans',      href: '/prestamos/activos', icon: Assignment },
   { label: 'History',           href: '/historial',         icon: History },
 ];
 
 const ADMIN_ITEMS = [
+  { label: 'Agents',            href: '/agentes',           icon: SensorsIcon },
   { label: 'Users',             href: '/usuarios',          icon: GroupIcon },
+  { label: 'Offices',           href: '/oficinas',          icon: BusinessIcon },
 ];
 
 function NavList({ items, pathname, dark, onClose }) {

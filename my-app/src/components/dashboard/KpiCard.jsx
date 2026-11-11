@@ -7,7 +7,7 @@ const COLOR_MAP = {
   error:   { glow: 'rgba(248,113,113,0.1)',  border: 'rgba(248,113,113,0.18)',icon: 'rgba(248,113,113,0.1)',  text: '#f87171' },
 };
 
-export default function KpiCard({ title, value, icon, color = 'primary', empty = false }) {
+export default function KpiCard({ title, value, subtitle, icon, color = 'primary', empty = false }) {
   const c = COLOR_MAP[color] ?? COLOR_MAP.primary;
 
   return (
@@ -68,11 +68,18 @@ export default function KpiCard({ title, value, icon, color = 'primary', empty =
                 </Typography>
               </Box>
             ) : (
-              <Typography
-                sx={{ fontSize: '2.2rem', fontWeight: 700, color: 'text.primary', letterSpacing: '-0.03em', lineHeight: 1 }}
-              >
-                {value}
-              </Typography>
+              <>
+                <Typography
+                  sx={{ fontSize: '2.2rem', fontWeight: 700, color: 'text.primary', letterSpacing: '-0.03em', lineHeight: 1 }}
+                >
+                  {value}
+                </Typography>
+                {subtitle && (
+                  <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', mt: 0.8, fontWeight: 500 }}>
+                    {subtitle}
+                  </Typography>
+                )}
+              </>
             )}
           </Box>
 

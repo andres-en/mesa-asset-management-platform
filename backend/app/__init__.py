@@ -68,19 +68,23 @@ def create_app(config_name=None):
 
 
 def register_blueprints(app):
+    from app.routes.agente import agente_bp
     from app.routes.auth import auth_bp
     from app.routes.dashboard import dashboard_bp
     from app.routes.equipos import equipos_bp
     from app.routes.firma import firma_bp
     from app.routes.historial import historial_bp
+    from app.routes.oficinas import oficinas_bp
     from app.routes.prestamos import prestamos_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(equipos_bp)
+    app.register_blueprint(oficinas_bp)
     app.register_blueprint(prestamos_bp)
     app.register_blueprint(firma_bp)
     app.register_blueprint(historial_bp)
     app.register_blueprint(dashboard_bp)
+    app.register_blueprint(agente_bp)
 
     @app.get("/health")
     def health():

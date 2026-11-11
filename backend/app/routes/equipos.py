@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
-from app.services import equipo_service
+from app.services import comando_service, equipo_service
 from app.utils.roles import admin_required
 
 equipos_bp = Blueprint("equipos", __name__, url_prefix="/equipos")
@@ -22,12 +22,18 @@ def listar():
         type: string
         required: false
         description: Filter by status (Disponible, Prestado, Mantenimiento, Dado de baja)
+      - in: query
+        name: oficina_id
+        type: integer
+        required: false
+        description: Filter by office
     responses:
       200:
         description: Device list
     """
     estado = request.args.get("estado")
-    equipos = equipo_service.listar_equipos(estado=estado)
+    oficina_id = request.args.get("oficina_id", type=int)
+    equipos = equipo_service.listar_equipos(estado=estado, oficina_id=oficina_id)
     return jsonify([e.to_dict() for e in equipos])
 
 
@@ -157,3 +163,130 @@ def actualizar(equipo_id):
     data = request.get_json(silent=True) or {}
     equipo = equipo_service.actualizar_equipo(equipo_id, data, usuario_id=int(get_jwt_identity()))
     return jsonify(equipo.to_dict())
+
+
+@equipos_bp.get("/comandos/catalogo")
+@jwt_required()
+def catalogo_comandos():
+    """Lists the closed catalog of available remediation commands.
+    ---
+    tags:
+      - Remote commands
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: Command catalog
+    """
+    return jsonify(comando_service.listar_catalogo())
+
+
+@equipos_bp.get("/comandos/resumen")
+@jwt_required()
+@admin_required
+def resumen_comandos():
+    """Counts command executions by status, for the dashboard.
+    ---
+    tags:
+      - Remote commands
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: Count per status (pendiente, en_progreso, completado, fallido)
+      403:
+        description: Administrator role required
+    """
+    return jsonify(comando_service.resumen_estados())
+
+
+@equipos_bp.post("/<int:equipo_id>/agente-token")
+@jwt_required()
+@admin_required
+def generar_token_agente(equipo_id):
+    """Generates (or rotates) a device's agent enrollment token.
+    The token is shown only once; only its hash is stored.
+    ---
+    tags:
+      - Remote commands
+    security:
+      - Bearer: []
+    parameters:
+      - in: path
+        name: equipo_id
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Token generated
+      403:
+        description: Administrator role required
+      404:
+        description: Device not found
+    """
+    token = comando_service.generar_token_para_equipo(equipo_id)
+    return jsonify({"token": token})
+
+
+@equipos_bp.post("/<int:equipo_id>/comandos")
+@jwt_required()
+@admin_required
+def encolar_comando(equipo_id):
+    """Queues a catalog command to run on the device.
+    ---
+    tags:
+      - Remote commands
+    security:
+      - Bearer: []
+    parameters:
+      - in: path
+        name: equipo_id
+        type: integer
+        required: true
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - comando_id
+          properties:
+            comando_id:
+              type: string
+    responses:
+      201:
+        description: Command queued
+      400:
+        description: Unknown command
+      403:
+        description: Administrator role required
+      404:
+        description: Device not found
+      409:
+        description: The device has no installed/enrolled agent
+    """
+    data = request.get_json(silent=True) or {}
+    ejecucion = comando_service.encolar_comando(equipo_id, data.get("comando_id"), usuario_id=int(get_jwt_identity()))
+    return jsonify(ejecucion.to_dict()), 201
+
+
+@equipos_bp.get("/<int:equipo_id>/comandos")
+@jwt_required()
+def historial_comandos(equipo_id):
+    """Lists the commands run or in progress on a device.
+    ---
+    tags:
+      - Remote commands
+    security:
+      - Bearer: []
+    parameters:
+      - in: path
+        name: equipo_id
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Execution history
+    """
+    ejecuciones = comando_service.listar_ejecuciones(equipo_id)
+    return jsonify([e.to_dict() for e in ejecuciones])

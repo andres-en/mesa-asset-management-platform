@@ -11,7 +11,9 @@
 Gestión de activos de TI: una aplicación web para que los equipos de TI lleven el control del hardware de la empresa: el
 inventario de equipos, quién tiene cada portátil y un acta de entrega firmada por cada préstamo. El
 empleado puede firmar **a distancia** con un enlace de un solo uso que le llega por correo, y cada
-cambio de estado queda en un historial de auditoría.
+cambio de estado queda en un historial de auditoría. Los equipos de oficina se ubican en un **mapa de
+red** interactivo, y TI puede ejecutar en ellos un conjunto cerrado de **comandos de remediación
+remota** mediante un pequeño agente para Windows.
 
 <!-- Capturas: agregar imágenes en docs/screenshots/ y descomentar.
 ![Dashboard](docs/screenshots/dashboard.png)
@@ -28,6 +30,17 @@ cambio de estado queda en un historial de auditoría.
   es de un solo uso y se puede regenerar. Un enlace vencido responde `410 Gone`.
 - **Actas en PDF firmadas**, generadas con ReportLab e incluyendo ambas firmas (TI y empleado).
 - **Historial de auditoría** de cada cambio de estado de un equipo, con quién lo hizo.
+- **Inventario de red y mapa de oficinas.** Cada equipo puede tener su oficina, hostname, IP
+  (validada), VLAN (1–4094) y MAC. Los administradores dibujan el plano de cada oficina (puestos,
+  divisores, puntos de red) y ubican los equipos en los puestos; la API rechaza un equipo en dos
+  puestos, en dos oficinas o que esté prestado. Los equipos asignados a una oficina no se pueden prestar.
+- **Agente de remediación remota.** Un agente para Windows de tipo *dial-out* (Python solo con la
+  librería estándar, empaquetado con PyInstaller e instalado como tarea programada de SYSTEM) consulta
+  la API y ejecuta únicamente comandos de un **catálogo cerrado** (limpiar caché DNS, renovar IP,
+  reiniciar la cola de impresión…), nunca scripts arbitrarios. Cada equipo tiene su propio token de
+  agente, que se muestra una sola vez y **se guarda solo como hash SHA-256**; los comandos entregados se
+  marcan en progreso para no ejecutarse dos veces, y un agente solo puede reportar resultados de su
+  propio equipo.
 - **Manejo seguro de la sesión.** Intercambio del código de Google OAuth → JWT en una **cookie
   HttpOnly** con protección **CSRF de doble envío**, revocación del token en el servidor al cerrar
   sesión y tokens Bearer para clientes de la API.
@@ -49,6 +62,7 @@ flowchart LR
     api -->|enlace de firma / avisos| smtp[(SMTP)]
     api --> pdf[ReportLab<br/>actas en PDF]
     api --> files[(Imágenes de firmas<br/>volumen)]
+    agent[Agente Windows<br/>en cada equipo] -->|consulta · X-Agent-Token| api
 ```
 
 ### Flujo de firma remota
@@ -151,11 +165,18 @@ Referencia completa en `/apidocs`. Endpoints principales:
 | `GET` | `/prestamos/{id}/pdf` | Con sesión | Acta firmada en PDF |
 | `GET/POST` | `/firma/{token}` | Público (token) | Datos para la página de firma · enviar la firma |
 | `GET` | `/historial` · `/historial/equipo/{id}` | Con sesión | Historial de cambios de estado |
+| `GET` | `/oficinas` | Con sesión | Oficinas con su mapa |
+| `POST/PUT/DELETE` | `/oficinas` · `/oficinas/{id}` · `/oficinas/{id}/layout` | Admin | Gestiona oficinas y guarda el mapa de red |
+| `GET` | `/equipos/comandos/catalogo` · `/equipos/{id}/comandos` | Con sesión | Catálogo de comandos · historial de comandos de un equipo |
+| `POST` | `/equipos/{id}/agente-token` · `/equipos/{id}/comandos` | Admin | Genera o regenera el token del agente · encola un comando |
+| `GET/POST` | `/agente/comandos/pendientes` · `/agente/comandos/{id}/resultado` | Token de agente | Consulta del agente · reporte de resultado |
 
 ## Modelo de datos
 
-`usuarios` (usuarios y roles), `equipos`, `prestamos` (préstamos, firmas, hash y expiración del token
-de firma), `historial_estados` (historial de cambios de estado) y `tokens_revocados` (JWT revocados).
+`usuarios` (usuarios y roles), `equipos` (equipos, datos de red y hash del token del agente),
+`oficinas` (oficinas y su mapa), `prestamos` (préstamos, firmas, hash y expiración del token de firma),
+`historial_estados` (historial de cambios de estado), `comando_ejecuciones` (cola y resultados de los
+comandos remotos) y `tokens_revocados` (JWT revocados).
 Los cambios de esquema pasan por Flask-Migrate; el CI falla si los modelos y las migraciones no
 coinciden.
 
@@ -170,7 +191,8 @@ TEST_DATABASE_URL=postgresql://usuario:clave@localhost:5433/mesa_test pytest --c
 Los tests cubren el flujo de sesión con cookie + CSRF, la revocación de tokens, los permisos por rol
 (el viewer es de solo lectura), el ciclo completo del préstamo (firma presencial y remota,
 expiración, regeneración del enlace, un solo uso, devoluciones, generación del PDF), las reglas del
-inventario y la especificación Swagger. El CI ejecuta lint, los tests sobre PostgreSQL,
+inventario, las oficinas y sus mapas, el flujo de comandos remotos (autenticación del agente,
+catálogo, consulta, aislamiento por equipo) y la especificación Swagger. El CI ejecuta lint, los tests sobre PostgreSQL,
 `flask db upgrade` + `flask db check`, el lint y build del frontend, y los builds de Docker.
 
 ## Estructura del proyecto
@@ -178,13 +200,14 @@ inventario y la especificación Swagger. El CI ejecuta lint, los tests sobre Pos
 ```
 backend/
 ├── app/
-│   ├── routes/        # blueprints de Flask (auth, equipos, prestamos, firma, historial, dashboard)
+│   ├── routes/        # blueprints de Flask (auth, equipos, oficinas, prestamos, firma, historial, dashboard, agente)
 │   ├── services/      # reglas de negocio, correo, PDF, firmas, OAuth
 │   ├── models/        # modelos SQLAlchemy
 │   └── utils/         # errores, tokens, verificación de roles
 ├── migrations/        # Flask-Migrate / Alembic
 ├── tests/
 └── Mesa.postman_collection.json
+agent/                 # agente de remediación para Windows + scripts de instalación
 my-app/                # frontend Next.js (App Router, MUI)
 docker-compose.yml     # stack completo
 ```

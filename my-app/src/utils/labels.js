@@ -23,6 +23,11 @@ const LABELS = {
   'Con daños': 'Damaged',
   Incompleto: 'Incomplete',
   'Requiere mantenimiento': 'Needs maintenance',
+  // Remote command execution status (ESTADOS_COMANDO_EJECUCION)
+  pendiente: 'Pending',
+  en_progreso: 'In progress',
+  completado: 'Completed',
+  fallido: 'Failed',
   // Equipment types
   Servidor: 'Server',
   Impresora: 'Printer',

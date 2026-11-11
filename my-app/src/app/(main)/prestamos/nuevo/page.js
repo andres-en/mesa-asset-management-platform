@@ -64,7 +64,8 @@ function NuevoPrestamoForm() {
 
   useEffect(() => {
     api.get('/equipos')
-      .then((data) => setEquiposDisponibles(data.filter((e) => e.estado === 'Disponible')))
+      // Solo equipos de bodega: los asignados a un puesto de oficina están en uso fijo y no se prestan.
+      .then((data) => setEquiposDisponibles(data.filter((e) => e.estado === 'Disponible' && !e.oficina_id)))
       .catch((e) => setError(e.message))
       .finally(() => setLoadingEquipos(false));
   }, []);

@@ -1,0 +1,5 @@
+{
+  "base_url": "http://localhost:5000",
+  "token": "PASTE_THE_TOKEN_GENERATED_FROM_THE_DEVICE_PAGE",
+  "poll_interval_seconds": 25
+}

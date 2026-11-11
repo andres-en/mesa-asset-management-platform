@@ -57,7 +57,10 @@ export default function InventarioPage() {
         e.numero_serie?.toLowerCase().includes(q) ||
         e.marca?.toLowerCase().includes(q) ||
         e.modelo?.toLowerCase().includes(q) ||
-        e.tipo?.toLowerCase().includes(q);
+        e.tipo?.toLowerCase().includes(q) ||
+        e.oficina_nombre?.toLowerCase().includes(q) ||
+        e.hostname?.toLowerCase().includes(q) ||
+        e.ip?.toLowerCase().includes(q);
       return matchEstado && matchSearch;
     });
   }, [equipos, filtroEstado, search]);
@@ -139,6 +142,7 @@ export default function InventarioPage() {
                 <TableCell>Code / Serial</TableCell>
                 <TableCell>Type</TableCell>
                 <TableCell>Brand / Model</TableCell>
+                <TableCell>Office / Network</TableCell>
                 <TableCell>Processor</TableCell>
                 <TableCell>RAM</TableCell>
                 <TableCell>Storage</TableCell>
@@ -150,13 +154,13 @@ export default function InventarioPage() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6, border: 'none' }}>
+                  <TableCell colSpan={10} align="center" sx={{ py: 6, border: 'none' }}>
                     <CircularProgress size={26} sx={{ color: '#1176EF' }} />
                   </TableCell>
                 </TableRow>
               ) : equiposFiltrados.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6, border: 'none', color: 'text.secondary' }}>
+                  <TableCell colSpan={10} align="center" sx={{ py: 6, border: 'none', color: 'text.secondary' }}>
                     No devices found
                   </TableCell>
                 </TableRow>
@@ -183,6 +187,16 @@ export default function InventarioPage() {
                         <Typography sx={{ fontSize: '0.875rem', fontWeight: 500, color: 'text.primary' }}>
                           {equipo.marca} / {equipo.modelo}
                         </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography sx={{ fontSize: '0.825rem', color: 'text.primary' }}>
+                          {equipo.oficina_nombre || '—'}
+                        </Typography>
+                        {(equipo.hostname || equipo.ip) && (
+                          <Typography sx={{ fontSize: '0.73rem', color: 'text.secondary', fontFamily: 'monospace' }}>
+                            {[equipo.hostname, equipo.ip].filter(Boolean).join(' · ')}
+                          </Typography>
+                        )}
                       </TableCell>
                       <TableCell sx={{ color: 'text.secondary', fontSize: '0.825rem' }}>{equipo.procesador || '—'}</TableCell>
                       <TableCell sx={{ color: 'text.secondary', fontSize: '0.825rem' }}>{formatGB(equipo.ram)}</TableCell>

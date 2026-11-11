@@ -17,6 +17,7 @@ import { formatDate, formatGB } from '@/utils/formatDate';
 import { label }             from '@/utils/labels';
 import EquipoEstadoChip      from '@/components/equipos/EquipoEstadoChip';
 import EquipoForm            from '@/components/equipos/EquipoForm';
+import ComandosRemotos       from '@/components/equipos/ComandosRemotos';
 import { useToast }          from '@/contexts/ToastContext';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -134,6 +135,23 @@ export default function EquipoDetailPage() {
           </>
         )}
       </Paper>
+
+      {/* Ubicación y red */}
+      <Paper sx={{ p: 3, borderRadius: 2, mb: 3 }}>
+        <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 2.5, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: '0.7rem' }}>
+          Location and network
+        </Typography>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(3, 1fr)', md: 'repeat(5, 1fr)' }, gap: 3 }}>
+          <Field label="Office"       value={equipo.oficina_nombre} />
+          <Field label="Hostname"     value={equipo.hostname} />
+          <Field label="IP"           value={equipo.ip} />
+          <Field label="VLAN"         value={equipo.vlan} />
+          <Field label="MAC"          value={equipo.mac_address} />
+        </Box>
+      </Paper>
+
+      {/* Comandos remotos (solo admin) */}
+      {isAdmin && <ComandosRemotos equipo={equipo} onEquipoChange={load} />}
 
       {/* Historial de préstamos */}
       <Paper sx={{ borderRadius: 2, mb: 3, overflow: 'hidden' }}>

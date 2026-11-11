@@ -32,3 +32,10 @@ out/
 .claude/
 .DS_Store
 Thumbs.db
+
+# --- Remediation agent (local config and PyInstaller build output) ---
+agent/config.json
+agent/.buildenv/
+agent/build/
+agent/dist/
+agent/*.spec

@@ -9,6 +9,7 @@ import {
 import { api } from '@/services/api';
 import { useToast } from '@/contexts/ToastContext';
 import { label } from '@/utils/labels';
+import { useOficinas } from '@/hooks/useOficinas';
 
 const TIPOS = ['Laptop', 'Desktop', 'Monitor', 'Tablet', 'Servidor', 'Impresora', 'Otro'];
 
@@ -22,6 +23,11 @@ const EMPTY = {
   ram:             '',
   almacenamiento:  '',
   observaciones:   '',
+  oficina_id:      '',
+  hostname:        '',
+  ip:              '',
+  vlan:            '',
+  mac_address:     '',
 };
 
 // ─── Helpers para parsear/combinar valores con unidad ────────────────────────
@@ -157,6 +163,7 @@ export default function EquipoForm({ open, equipo, onClose, onSaved }) {
   const [form, setForm] = useState(EMPTY);
   const [loading, setLoading] = useState(false);
   const { showToast } = useToast();
+  const { oficinas } = useOficinas();
   const editing = Boolean(equipo?.id);
 
   useEffect(() => {
@@ -173,6 +180,11 @@ export default function EquipoForm({ open, equipo, onClose, onSaved }) {
               ram:             equipo.ram              ?? '',
               almacenamiento:  equipo.almacenamiento   ?? '',
               observaciones:   equipo.observaciones    ?? '',
+              oficina_id:      equipo.oficina_id        ?? '',
+              hostname:        equipo.hostname          ?? '',
+              ip:              equipo.ip                ?? '',
+              vlan:            equipo.vlan              ?? '',
+              mac_address:     equipo.mac_address       ?? '',
             }
           : EMPTY
       );
@@ -187,10 +199,11 @@ export default function EquipoForm({ open, equipo, onClose, onSaved }) {
     e.preventDefault();
     setLoading(true);
     try {
+      const payload = { ...form, oficina_id: form.oficina_id || null };
       if (editing) {
-        await api.put(`/equipos/${equipo.id}`, form);
+        await api.put(`/equipos/${equipo.id}`, payload);
       } else {
-        await api.post('/equipos', form);
+        await api.post('/equipos', payload);
       }
       onSaved();
       onClose();
@@ -288,6 +301,62 @@ export default function EquipoForm({ open, equipo, onClose, onSaved }) {
               rows={2}
               sx={{ gridColumn: { sm: 'span 2' } }}
               slotProps={{ htmlInput: { maxLength: 500 } }}
+            />
+
+            <Box sx={{ gridColumn: { sm: 'span 2' }, mt: 1 }}>
+              <Box component="span" sx={{ fontSize: '0.7rem', fontWeight: 700, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                Location and network
+              </Box>
+            </Box>
+
+            <TextField
+              select
+              label="Office"
+              name="oficina_id"
+              value={form.oficina_id}
+              onChange={handleChange}
+              fullWidth
+            >
+              <MenuItem value=""><em>Unassigned</em></MenuItem>
+              {oficinas.map((o) => <MenuItem key={o.id} value={o.id}>{o.nombre}</MenuItem>)}
+            </TextField>
+            <TextField
+              label="Device name (hostname)"
+              name="hostname"
+              value={form.hostname}
+              onChange={handleChange}
+              fullWidth
+              placeholder="PC-HQ-001"
+              slotProps={{ htmlInput: { maxLength: 100 } }}
+            />
+            <TextField
+              label="IP address"
+              name="ip"
+              value={form.ip}
+              onChange={handleChange}
+              fullWidth
+              placeholder="10.0.0.23"
+              slotProps={{ htmlInput: { maxLength: 45 } }}
+            />
+            <TextField
+              label="VLAN"
+              name="vlan"
+              value={form.vlan}
+              onChange={handleChange}
+              fullWidth
+              type="number"
+              placeholder="20"
+              slotProps={{ htmlInput: { min: 1, max: 4094 } }}
+            />
+            <TextField
+              label="MAC address"
+              name="mac_address"
+              value={form.mac_address}
+              onChange={handleChange}
+              fullWidth
+              placeholder="AA:BB:CC:DD:EE:FF"
+              sx={{ gridColumn: { sm: 'span 2' } }}
+              slotProps={{ htmlInput: { maxLength: 17 } }}
             />
           </Box>
         </DialogContent>

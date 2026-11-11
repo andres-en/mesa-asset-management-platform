@@ -15,6 +15,17 @@ def generar_token_firma():
     return token_plano, token_hash
 
 
+def generar_token_agente():
+    """Genera el token que el agente instalado en un equipo usa para autenticarse.
+
+    Igual que el de firma: solo el hash se persiste, el plano se muestra una
+    única vez al generarlo para copiarlo a la configuración del agente.
+    """
+    token_plano = secrets.token_urlsafe(32)
+    token_hash = hashear_token(token_plano)
+    return token_plano, token_hash
+
+
 def hashear_token(token_plano: str) -> str:
     return hashlib.sha256(token_plano.encode("utf-8")).hexdigest()
 

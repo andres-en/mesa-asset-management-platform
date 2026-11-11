@@ -56,6 +56,8 @@ def crear_prestamo(data, usuario_id):
         raise NoEncontrado("Device not found")
     if equipo.estado != "Disponible":
         raise AppError("The device is not available for loan")
+    if equipo.oficina_id:
+        raise AppError("This device is assigned to an office desk and is not in the warehouse for loan")
 
     nombre_empleado = (data.get("nombre_empleado") or "").strip()
     correo_empleado = (data.get("correo_empleado") or "").strip()

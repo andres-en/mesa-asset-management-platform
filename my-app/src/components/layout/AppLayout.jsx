@@ -4,24 +4,27 @@ import { useState } from 'react';
 import { Box, IconButton } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import Sidebar, { SIDEBAR_WIDTH } from './Sidebar';
+import AppBackground from '@/components/ui/AppBackground';
 
 export default function AppLayout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+      <AppBackground />
       <Sidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
 
       <Box
         component="main"
         sx={{
+          position: 'relative',
+          zIndex: 1,
           flexGrow: 1,
           display: 'flex',
           flexDirection: 'column',
           minHeight: '100vh',
           ml: { md: `${SIDEBAR_WIDTH}px` },
           width: { xs: '100%', md: `calc(100% - ${SIDEBAR_WIDTH}px)` },
-          bgcolor: 'background.default',
           overflowX: 'hidden',
         }}
       >

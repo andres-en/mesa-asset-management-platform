@@ -10,7 +10,9 @@
 
 IT asset management: a web app for IT teams to keep track of company hardware: the device inventory, who has each laptop,
 and a signed hand-over receipt for every loan. Employees can sign **remotely** through a single-use
-link sent by email, and every status change is kept in an audit history.
+link sent by email, and every status change is kept in an audit history. Office devices are placed on
+an interactive **network map**, and IT can run a closed set of **remote remediation commands** on them
+through a small Windows agent.
 
 <!-- Screenshots: add images to docs/screenshots/ and uncomment.
 ![Dashboard](docs/screenshots/dashboard.png)
@@ -27,6 +29,16 @@ link sent by email, and every status change is kept in an audit history.
   rotated. Expired links answer `410 Gone`.
 - **Signed PDF receipts** generated with ReportLab, including both signatures (IT and employee).
 - **Audit history** of every device status change, with who made it.
+- **Network inventory and office map.** Each device can carry its office, hostname, IP (validated),
+  VLAN (1–4094) and MAC. Admins draw each office's floor plan (desks, dividers, network ports) and
+  place devices on desks; the API rejects a device on two desks, in two offices, or on loan. Devices
+  assigned to an office are excluded from loans.
+- **Remote remediation agent.** A dial-out Windows agent (standard-library Python, packaged with
+  PyInstaller and installed as a SYSTEM scheduled task) polls the API and runs only commands from a
+  **closed catalog** (flush DNS, renew IP, restart the print spooler…), never arbitrary scripts. Each
+  device gets its own agent token, shown once and **stored only as a SHA-256 hash**; delivered
+  commands are marked in progress so they are never run twice, and an agent can only report results
+  for its own device.
 - **Secure session handling.** Google OAuth code exchange → JWT in an **HttpOnly cookie** with
   **CSRF double-submit** protection, server-side token revocation on logout, and Bearer tokens for
   API clients.
@@ -47,6 +59,7 @@ flowchart LR
     api -->|signing link / notifications| smtp[(SMTP)]
     api --> pdf[ReportLab<br/>PDF receipts]
     api --> files[(Signature images<br/>volume)]
+    agent[Windows agent<br/>on each device] -->|polls · X-Agent-Token| api
 ```
 
 ### Remote signature flow
@@ -132,7 +145,7 @@ See [.env.example](.env.example) (full stack) and [backend/.env.example](backend
 ## API
 
 Full reference at `/apidocs`. Main endpoints (resource names are in Spanish: *equipos* = devices,
-*préstamos* = loans, *firma* = signature, *historial* = history):
+*préstamos* = loans, *firma* = signature, *historial* = history, *oficinas* = offices, *agente* = agent):
 
 | Method | Path | Access | Description |
 |---|---|---|---|
@@ -150,11 +163,18 @@ Full reference at `/apidocs`. Main endpoints (resource names are in Spanish: *eq
 | `GET` | `/prestamos/{id}/pdf` | Signed in | Signed PDF receipt |
 | `GET/POST` | `/firma/{token}` | Public (token) | Remote signature page data · submit the signature |
 | `GET` | `/historial` · `/historial/equipo/{id}` | Signed in | Status change history |
+| `GET` | `/oficinas` | Signed in | Offices with their map layout |
+| `POST/PUT/DELETE` | `/oficinas` · `/oficinas/{id}` · `/oficinas/{id}/layout` | Admin | Manage offices and save the network map |
+| `GET` | `/equipos/comandos/catalogo` · `/equipos/{id}/comandos` | Signed in | Command catalog · a device's command history |
+| `POST` | `/equipos/{id}/agente-token` · `/equipos/{id}/comandos` | Admin | Issue or rotate the agent token · queue a command |
+| `GET/POST` | `/agente/comandos/pendientes` · `/agente/comandos/{id}/resultado` | Agent token | Agent polling · report a result |
 
 ## Data model
 
-`usuarios` (users and roles), `equipos` (devices), `prestamos` (loans, signatures, signing-token hash
-and expiry), `historial_estados` (status change history) and `tokens_revocados` (revoked JWTs).
+`usuarios` (users and roles), `equipos` (devices, network data and agent-token hash), `oficinas`
+(offices and their map layout), `prestamos` (loans, signatures, signing-token hash and expiry),
+`historial_estados` (status change history), `comando_ejecuciones` (remote command queue and results)
+and `tokens_revocados` (revoked JWTs).
 Schema changes go through Flask-Migrate; CI fails if the models and the migrations drift apart.
 
 ## Testing
@@ -167,7 +187,8 @@ TEST_DATABASE_URL=postgresql://user:pass@localhost:5433/mesa_test pytest --cov=a
 
 The tests cover the cookie + CSRF session flow, token revocation, role permissions (viewers are
 read-only), the full loan lifecycle (in-person and remote signatures, expiry, link rotation,
-single use, returns, PDF generation), inventory rules and the Swagger spec. CI runs lint, the tests on
+single use, returns, PDF generation), inventory rules, offices and map layouts, the remote-command
+flow (agent authentication, catalog, polling, per-device isolation) and the Swagger spec. CI runs lint, the tests on
 PostgreSQL, `flask db upgrade` + `flask db check`, the frontend lint and build, and the Docker builds.
 
 ## Project structure
@@ -175,13 +196,14 @@ PostgreSQL, `flask db upgrade` + `flask db check`, the frontend lint and build, 
 ```
 backend/
 ├── app/
-│   ├── routes/        # Flask blueprints (auth, equipos, prestamos, firma, historial, dashboard)
+│   ├── routes/        # Flask blueprints (auth, equipos, oficinas, prestamos, firma, historial, dashboard, agente)
 │   ├── services/      # business rules, email, PDF, signatures, OAuth
 │   ├── models/        # SQLAlchemy models
 │   └── utils/         # errors, tokens, role checks
 ├── migrations/        # Flask-Migrate / Alembic
 ├── tests/
 └── Mesa.postman_collection.json
+agent/                 # Windows remediation agent + install/uninstall scripts
 my-app/                # Next.js frontend (App Router, MUI)
 docker-compose.yml     # full stack
 ```

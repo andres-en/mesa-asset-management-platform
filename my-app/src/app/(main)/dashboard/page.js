@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Box, Typography, Skeleton } from '@mui/material';
 import AppAlert from '@/components/ui/AppAlert';
 import ComputerIcon from '@mui/icons-material/Computer';
@@ -9,8 +10,12 @@ import BuildIcon from '@mui/icons-material/Build';
 import BlockIcon from '@mui/icons-material/Block';
 import DrawIcon from '@mui/icons-material/Draw';
 import ErrorOutlinedIcon from '@mui/icons-material/ErrorOutlined';
+import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
+import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import { useEquipos } from '@/hooks/useEquipos';
 import { usePrestamos } from '@/hooks/usePrestamos';
+import { useAuth } from '@/contexts/AuthContext';
+import { api } from '@/services/api';
 import KpiCard from '@/components/dashboard/KpiCard';
 import InventarioChart from '@/components/dashboard/InventarioChart';
 
@@ -26,6 +31,11 @@ const KPI_PRESTAMOS = [
   { title: 'Active loans',        key: 'activos',          icon: <AssignmentIcon />,   color: 'primary' },
   { title: 'Pending signature',   key: 'pendientesFirma',  icon: <DrawIcon />,         color: 'warning' },
   { title: 'Expired signatures',  key: 'firmasExpiradas',  icon: <ErrorOutlinedIcon />, color: 'error'   },
+];
+
+const KPI_COMANDOS = [
+  { title: 'Pending commands', key: 'pendiente', icon: <HourglassEmptyIcon />, color: 'warning' },
+  { title: 'Failed commands',  key: 'fallido',   icon: <ReportProblemIcon />,  color: 'error'   },
 ];
 
 function esExpirado(p) {
@@ -75,24 +85,47 @@ function SectionLabel({ children }) {
 }
 
 export default function DashboardPage() {
+  const { isAdmin } = useAuth();
   const { equipos, loading: loadingEquipos, error: errorEquipos } = useEquipos();
   const { prestamos, loading: loadingPrestamos, error: errorPrestamos } = usePrestamos('/prestamos?estado=Activo');
+
+  const [resumenComandos, setResumenComandos] = useState(null);
+  const [loadingComandos, setLoadingComandos] = useState(true);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    api.get('/equipos/comandos/resumen')
+      .then(setResumenComandos)
+      .catch(() => {})
+      .finally(() => setLoadingComandos(false));
+  }, [isAdmin]);
 
   const hasEquipos  = !loadingEquipos  && !errorEquipos  && equipos.length  > 0;
   const hasPrestamos = !loadingPrestamos && !errorPrestamos;
 
+  const disponibles = equipos.filter((e) => e.estado === 'Disponible');
+
   const statsEquipos = {
     total:         equipos.length,
-    disponibles:   equipos.filter((e) => e.estado === 'Disponible').length,
+    disponibles:   disponibles.length,
     prestados:     equipos.filter((e) => e.estado === 'Prestado').length,
     mantenimiento: equipos.filter((e) => e.estado === 'Mantenimiento').length,
     dadoDeBaja:    equipos.filter((e) => e.estado === 'Dado de baja').length,
   };
 
+  const disponiblesBodega  = disponibles.filter((e) => !e.oficina_id).length;
+  const disponiblesOficina = disponibles.filter((e) => e.oficina_id).length;
+
   const statsPrestamos = {
     activos:         prestamos.length,
     pendientesFirma: prestamos.filter((p) => p.estado_firma === 'pendiente_remota' && !esExpirado(p)).length,
     firmasExpiradas: prestamos.filter((p) => esExpirado(p)).length,
+  };
+
+  const hasComandos = isAdmin && !loadingComandos && resumenComandos !== null;
+  const statsComandos = {
+    pendiente: (resumenComandos?.pendiente ?? 0) + (resumenComandos?.en_progreso ?? 0),
+    fallido:   resumenComandos?.fallido ?? 0,
   };
 
   return (
@@ -127,6 +160,7 @@ export default function DashboardPage() {
                 key={d.key}
                 title={d.title}
                 value={hasEquipos ? statsEquipos[d.key] : '—'}
+                subtitle={d.key === 'disponibles' && hasEquipos ? `${disponiblesBodega} in warehouse · ${disponiblesOficina} at offices` : undefined}
                 icon={d.icon}
                 color={d.color}
                 empty={!hasEquipos}
@@ -159,6 +193,35 @@ export default function DashboardPage() {
             ))
         }
       </Box>
+
+      {/* KPIs de comandos remotos (solo admin) */}
+      {isAdmin && (
+        <>
+          <SectionLabel>Remote commands</SectionLabel>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
+              gap: 2.5,
+              mb: 4,
+            }}
+          >
+            {loadingComandos
+              ? KPI_COMANDOS.map((d) => <KpiSkeleton key={d.key} color={d.color} />)
+              : KPI_COMANDOS.map((d) => (
+                  <KpiCard
+                    key={d.key}
+                    title={d.title}
+                    value={hasComandos ? statsComandos[d.key] : '—'}
+                    icon={d.icon}
+                    color={d.color}
+                    empty={!hasComandos}
+                  />
+                ))
+            }
+          </Box>
+        </>
+      )}
 
       {/* Chart */}
       {loadingEquipos ? (
